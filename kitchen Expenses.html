@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hostel Kitchen Pro - Live</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
+                        url('https://images.unsplash.com/photo-1490818387583-1baba5e638af?auto=format&fit=crop&w=1000&q=80');
+            background-attachment: fixed;
+            background-size: cover;
+            color: #333;
+            padding-bottom: 30px;
+        }
+
+        header {
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+                        url('https://images.unsplash.com/photo-1543353071-873f17a7a088?auto=format&fit=crop&w=1000&q=80');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            text-align: center;
+            padding: 50px 20px;
+            border-bottom-left-radius: 30px;
+            border-bottom-right-radius: 30px;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        header h1 { font-size: 30px; font-style: italic; margin-bottom: 5px; }
+        .urdu-title { font-size: 34px; direction: rtl; color: #81c784; font-weight: bold; }
+
+        .container { max-width: 600px; margin: -30px auto 20px; padding: 0 15px; }
+
+        .dashboard { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 20px; }
+        .card { flex: 1; background: white; padding: 15px; border-radius: 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .card h3 { font-size: 13px; color: #777; margin-bottom: 5px; font-style: italic; }
+        .card .amount { font-size: 18px; font-weight: bold; }
+        .text-green { color: #2e7d32; }
+        .text-red { color: #c62828; }
+        .text-blue { color: #1565c0; }
+
+        #adminPanel {
+            display: none;
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 2px dashed #4caf50;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .admin-title { font-weight: bold; color: #4caf50; margin-bottom: 10px; display: block; }
+
+        .section { background: rgba(255, 255, 255, 0.98); padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .toggle-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 5px 0; font-size: 18px; font-style: italic; }
+        .list-container { display: none; margin-top: 15px; }
+        .list-container.show { display: block; }
+        .arrow-icon { background: #ffa000; color: white; border-radius: 3px; padding: 2px 5px; font-size: 12px; font-style: normal; }
+
+        .input-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+        input { flex: 1; min-width: 120px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; outline: none; transition: 0.3s; }
+        input:focus { border-color: #4caf50; }
+        .btn { padding: 10px 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-add { background: #4caf50; width: 100%; margin-top: 5px; }
+        .btn-reset { background: #333; margin-top: 10px; width: 100%; }
+        
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #fff; border-bottom: 1px solid #eee; margin-bottom: 5px; border-radius: 5px; }
+        .item-info { flex: 1; dir: auto; text-align: start; }
+        .item-info strong { font-size: 18px; font-style: italic; }
+
+        .admin-only { display: none; gap: 5px; }
+        body.admin-active .admin-only { display: flex; } 
+        
+        .btn-edit { background: #ffa000; font-size: 12px; padding: 8px 12px; }
+        .btn-del { background: #d32f2f; font-size: 12px; padding: 8px 12px; }
+        
+        /* Loading Indicator */
+        #loading { text-align: center; color: #1565c0; font-weight: bold; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+    <header onclick="handleHeaderClick()">
+        <h1>Kitchen expenses</h1>
+        <div class="urdu-title">مطبخ کا خرچ</div>
+        <p style="font-size: 10px; opacity: 0.7; margin-top: 10px;"></p>
+    </header>
+
+    <div class="container">
+        <div id="loading"></div>
+
+        <div class="dashboard">
+            <div class="card"><h3>Jama</h3><div class="amount text-green">₹<span id="totalJama">0</span></div></div>
+            <div class="card"><h3>Kharch</h3><div class="amount text-red">₹<span id="totalKharch">0</span></div></div>
+            <div class="card"><h3>Bacha</h3><div class="amount text-blue">₹<span id="totalBacha">0</span></div></div>
+        </div>
+
+        <div id="adminPanel">
+            <span class="admin-title">🛠 Admin Control Panel</span>
+            
+            <div style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                <p style="margin-bottom: 8px;"><strong>Add/Edit Member:</strong></p>
+                <div class="input-group">
+                    <input type="text" id="mName" placeholder="Naam (e.g. Ali)">
+                    <input type="number" id="mAmount" placeholder="Amount (₹)">
+                </div>
+                <button class="btn btn-add" id="memberBtn" onclick="saveMember()">Add Member</button>
+            </div>
+
+            <div style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                <p style="margin-bottom: 8px;"><strong>Add/Edit Saman:</strong></p>
+                <div class="input-group">
+                    <input type="text" id="sName" placeholder="Saman (e.g. آلو)">
+                    <input type="number" id="sPrice" placeholder="Price (₹)">
+                    <input type="date" id="sDate">
+                </div>
+                <button class="btn btn-add" id="samanBtn" onclick="saveSaman()">Add Saman</button>
+            </div>
+
+            <button class="btn btn-reset" onclick="resetMonth()">New Month / Reset All Data</button>
+            <button class="btn btn-del" style="width: 100%; margin-top: 10px;" onclick="closeAdmin()">Close Admin Panel</button>
+        </div>
+
+        <div class="section">
+            <div class="toggle-header" onclick="toggleSection('membersList', 'memberArrow')">
+                <strong>Members Name</strong>
+                <span id="memberArrow" class="arrow-icon">🔽</span>
+            </div>
+            <div id="membersList" class="list-container"></div>
+        </div>
+
+        <div class="section">
+            <div class="toggle-header" onclick="toggleSection('expensesList', 'expenseArrow')">
+                <strong>Roz ka Kharcha</strong>
+                <span id="expenseArrow" class="arrow-icon">🔽</span>
+            </div>
+            <div id="expensesList" class="list-container"></div>
+        </div>
+    </div>
+
+    <script>
+        // Aapki Firebase Keys Yahan Hain
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwbJC-X-wYdlGKBy3FiGk-ztLBcinpfY0",
+            authDomain: "kitchen-d4979.firebaseapp.com",
+            databaseURL: "https://kitchen-d4979-default-rtdb.firebaseio.com",
+            projectId: "kitchen-d4979",
+            storageBucket: "kitchen-d4979.firebasestorage.app",
+            messagingSenderId: "639581583500",
+            appId: "1:639581583500:web:2a9338b4730d75dd7b63a9"
+        };
+
+        // Firebase Shuru Karna
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let members = [];
+        let expenses = [];
+        let editIdx = -1;
+        let editType = '';
+        let clickCount = 0;
+
+        // Firebase se Data Automatically Lana (Live Sync)
+        document.getElementById('loading').style.display = 'block';
+        db.ref('hostelData').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                members = data.members || [];
+                expenses = data.expenses || [];
+            } else {
+                members = [];
+                expenses = [];
+            }
+            render();
+            document.getElementById('loading').style.display = 'none';
+        });
+
+        // Firebase Par Data Bhejna
+        function syncData() {
+            document.getElementById('loading').style.display = 'block';
+            db.ref('hostelData').set({
+                members: members,
+                expenses: expenses
+            });
+        }
+
+        function handleHeaderClick() {
+            clickCount++;
+            if (clickCount === 3) {
+                document.getElementById('adminPanel').style.display = 'block';
+                document.body.classList.add('admin-active'); 
+                clickCount = 0;
+                alert("Admin Mode Open!");
+            }
+            setTimeout(() => clickCount = 0, 2000); 
+        }
+
+        function closeAdmin() { 
+            document.getElementById('adminPanel').style.display = 'none'; 
+            document.body.classList.remove('admin-active'); 
+        }
+
+        function toggleSection(id, arrowId) {
+            let list = document.getElementById(id);
+            let arrow = document.getElementById(arrowId);
+            list.classList.toggle('show');
+            arrow.innerText = list.classList.contains('show') ? '🔼' : '🔽';
+        }
+
+        function saveMember() {
+            let name = document.getElementById('mName').value;
+            let amt = parseFloat(document.getElementById('mAmount').value);
+            if(!name || isNaN(amt)) return alert("Data sahi bharein!");
+
+            if(editIdx > -1 && editType === 'member') {
+                members[editIdx] = {name, amt};
+                editIdx = -1;
+                document.getElementById('memberBtn').innerText = "Add Member";
+            } else {
+                members.push({name, amt});
+            }
+            syncData(); // Naya data firebase bhejna
+            clearInputs(['mName', 'mAmount']);
+        }
+
+        function saveSaman() {
+            let name = document.getElementById('sName').value;
+            let price = parseFloat(document.getElementById('sPrice').value);
+            let date = document.getElementById('sDate').value;
+            if(!name || isNaN(price)) return alert("Data sahi bharein!");
+
+            if(editIdx > -1 && editType === 'saman') {
+                expenses[editIdx] = {name, price, date};
+                editIdx = -1;
+                document.getElementById('samanBtn').innerText = "Add Saman";
+            } else {
+                expenses.push({name, price, date});
+            }
+            syncData(); // Naya data firebase bhejna
+            clearInputs(['sName', 'sPrice', 'sDate']);
+        }
+
+        function resetMonth() {
+            if(confirm("KYA AAP SURE HAIN? Is se saara data internet se hamesha ke liye delete ho jayega!")) {
+                members = [];
+                expenses = [];
+                syncData(); // Khali data firebase bhej kar sab delete karna
+                alert("Naya mahina shuru ho chuka hai. Saara hisab zero kar diya gaya hai.");
+            }
+        }
+
+        function render() {
+            let mList = document.getElementById('membersList');
+            let sList = document.getElementById('expensesList');
+            let tJama = 0, tKharch = 0;
+
+            mList.innerHTML = '';
+            members.forEach((m, i) => {
+                tJama += m.amt;
+                mList.innerHTML += `<div class="item-row">
+                    <div class="item-info" dir="auto"><strong>${m.name}</strong>: ₹${m.amt}</div>
+                    <div class="admin-only">
+                        <button class="btn btn-edit" onclick="editItem(${i}, 'member')">Edit</button>
+                        <button class="btn btn-del" onclick="delItem(${i}, 'member')">Del</button>
+                    </div>
+                </div>`;
+            });
+
+            sList.innerHTML = '';
+            expenses.forEach((s, i) => {
+                tKharch += s.price;
+                
+                let formattedDate = "";
+                if (s.date) {
+                    let parts = s.date.split('-');
+                    if (parts.length === 3) {
+                        formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+                    } else {
+                        formattedDate = s.date;
+                    }
+                }
+                
+                let dateText = formattedDate ? ` <small style="color:#777; font-size:12px;">(${formattedDate})</small>` : "";
+                
+                sList.innerHTML += `<div class="item-row">
+                    <div class="item-info" dir="auto"><strong>${s.name}</strong>: ₹${s.price}${dateText}</div>
+                    <div class="admin-only">
+                        <button class="btn btn-edit" onclick="editItem(${i}, 'saman')">Edit</button>
+                        <button class="btn btn-del" onclick="delItem(${i}, 'saman')">Del</button>
+                    </div>
+                </div>`;
+            });
+
+            document.getElementById('totalJama').innerText = tJama;
+            document.getElementById('totalKharch').innerText = tKharch;
+            document.getElementById('totalBacha').innerText = tJama - tKharch;
+        }
+
+        function delItem(i, type) {
+            if(confirm("Kya aap sach mein ise delete karna chahte hain?")) {
+                if(type === 'member') members.splice(i, 1);
+                else expenses.splice(i, 1);
+                syncData(); // Delete hone par internet par update karna
+            }
+        }
+
+        function editItem(i, type) {
+            editIdx = i;
+            editType = type;
+            if(type === 'member') {
+                document.getElementById('mName').value = members[i].name;
+                document.getElementById('mAmount').value = members[i].amt;
+                document.getElementById('memberBtn').innerText = "Update Member";
+            } else {
+                document.getElementById('sName').value = expenses[i].name;
+                document.getElementById('sPrice').value = expenses[i].price;
+                document.getElementById('sDate').value = expenses[i].date;
+                document.getElementById('samanBtn').innerText = "Update Saman";
+            }
+            window.scrollTo(0,0);
+        }
+
+        function clearInputs(ids) { ids.forEach(id => document.getElementById(id).value = ''); }
+    </script>
+</body>
+</html>
